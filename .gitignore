@@ -10,6 +10,9 @@
 /nbproject/
 /nbactions.xml
 
+# Netbeans deploy
+/build/
+
 # Maven deploy
 /target/
 
