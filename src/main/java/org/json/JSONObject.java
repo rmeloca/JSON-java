@@ -1,7 +1,5 @@
 package org.json;
 
-import java.io.Closeable;
-
 /*
  Copyright (c) 2002 JSON.org
 
@@ -30,9 +28,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
