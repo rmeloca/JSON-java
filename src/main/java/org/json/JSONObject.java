@@ -36,11 +36,14 @@ import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.ResourceBundle;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 /**
  * A JSONObject is an unordered collection of name/value pairs. Its external
@@ -95,7 +98,7 @@ import java.util.Set;
  */
 public class JSONObject {
 
-    private static Collection<Object> visited = new ArrayList<>();
+    private static Collection<Object> VISITED = new ArrayList<>();
 
     /**
      * JSONObject.NULL is equivalent to the value that JavaScript calls null,
@@ -151,7 +154,7 @@ public class JSONObject {
     /**
      * The map where the JSONObject's properties are kept.
      */
-    private final Map<String, Object> map;
+    private final SortedMap<String, Object> map;
 
     /**
      * It is sometimes more convenient and less ambiguous to have a
@@ -171,7 +174,7 @@ public class JSONObject {
         // implementations to rearrange their items for a faster element 
         // retrieval based on associative access.
         // Therefore, an implementation mustn't rely on the order of the item.
-        this.map = new HashMap<String, Object>();
+        this.map = new TreeMap<>();
     }
 
     /**
@@ -265,10 +268,8 @@ public class JSONObject {
      * @throws NullPointerException If a key in the map is <code>null</code>
      */
     public JSONObject(Map<?, ?> m) {
-        if (m == null) {
-            this.map = new HashMap<String, Object>();
-        } else {
-            this.map = new HashMap<String, Object>(m.size());
+            this.map = new TreeMap<>();
+        if (m != null) {
             for (final Entry<?, ?> e : m.entrySet()) {
                 if (e.getKey() == null) {
                     throw new NullPointerException("Null key.");
@@ -418,17 +419,6 @@ public class JSONObject {
                 target.put(path[last], bundle.getString((String) key));
             }
         }
-    }
-
-    /**
-     * Constructor to specify an initial capacity of the internal map. Useful
-     * for library internal calls where we know, or at least can best guess, how
-     * big this JSONObject will be.
-     *
-     * @param initialCapacity initial capacity of the internal map.
-     */
-    protected JSONObject(int initialCapacity) {
-        this.map = new HashMap<String, Object>(initialCapacity);
     }
 
     /**
@@ -1368,6 +1358,18 @@ public class JSONObject {
         return NULL.equals(object) ? defaultValue : object.toString();
     }
 
+    public List<Field> getAllFields(List<Field> fields, Class<?> type) {
+        for (Field field : type.getDeclaredFields()) {
+            if (!field.getName().startsWith("ajc$tjp_")) {
+                fields.add(field);
+            }
+        }
+        if (type.getSuperclass() != null) {
+            getAllFields(fields, type.getSuperclass());
+        }
+        return fields;
+    }
+
     /**
      * Populates the internal map of the JSONObject with the bean properties.
      * The bean can not be recursive.
@@ -1378,7 +1380,8 @@ public class JSONObject {
      */
     private void populateMap(Object bean) {
         Class<?> klass = bean.getClass();
-        Field[] fields = klass.getDeclaredFields();
+        List<Field> fields = new ArrayList<>();
+        fields = getAllFields(fields, klass);
         for (Field field : fields) {
             try {
                 field.setAccessible(true);
@@ -2162,6 +2165,19 @@ public class JSONObject {
         return JSONWriter.valueToString(value);
     }
 
+    public static void resetCycleBreaker() {
+        JSONObject.VISITED.clear();
+    }
+
+    private static boolean contains(Object object) {
+        for (Object visited : VISITED) {
+            if (visited == object) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Wrap an object, if necessary. If the object is <code>null</code>, return
      * the NULL object. If it is an array or collection, wrap it in a JSONArray.
@@ -2175,16 +2191,11 @@ public class JSONObject {
      * @return The wrapped value
      */
     public static Object wrap(Object object) {
-        if (visited.contains(object)) {
-            return NULL;
-        }
-        visited.add(object);
         try {
             if (object == null) {
                 return NULL;
             }
-            if (object instanceof JSONObject || object instanceof JSONArray
-                    || NULL.equals(object) || object instanceof JSONString
+            if (NULL.equals(object) || object instanceof JSONString
                     || object instanceof Byte || object instanceof Character
                     || object instanceof Short || object instanceof Integer
                     || object instanceof Long || object instanceof Boolean
@@ -2193,7 +2204,13 @@ public class JSONObject {
                     || object instanceof BigDecimal || object instanceof Enum) {
                 return object;
             }
-
+            if (contains(object)) {
+                return object.getClass().getName() + "@" + object.hashCode();
+            }
+            VISITED.add(object);
+            if (object instanceof JSONObject || object instanceof JSONArray) {
+                return object;
+            }
             if (object instanceof Collection) {
                 Collection<?> coll = (Collection<?>) object;
                 return new JSONArray(coll);
@@ -2206,10 +2223,10 @@ public class JSONObject {
                 return new JSONObject(map);
             }
             Package objectPackage = object.getClass().getPackage();
-            String objectPackageName = objectPackage != null ? objectPackage
-                    .getName() : "";
+            String objectPackageName = objectPackage != null ? objectPackage.getName() : "";
             if (objectPackageName.startsWith("java.")
                     || objectPackageName.startsWith("javax.")
+                    || objectPackageName.startsWith("org.")
                     || object.getClass().getClassLoader() == null) {
                 return object.toString();
             }
