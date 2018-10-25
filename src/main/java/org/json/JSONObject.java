@@ -2247,17 +2247,6 @@ public class JSONObject {
                 Map<?, ?> map = (Map<?, ?>) object;
                 return new JSONObject(map);
             }
-            Package objectPackage = object.getClass().getPackage();
-            String objectPackageName = objectPackage != null ? objectPackage.getName() : "";
-            if (objectPackageName.startsWith("java.")
-                    || objectPackageName.startsWith("javax.")
-                    || objectPackageName.startsWith("org.ietf.")
-                    || objectPackageName.startsWith("org.omg.")
-                    || objectPackageName.startsWith("org.w3c.")
-                    || objectPackageName.startsWith("org.xml.")
-                    || object.getClass().getClassLoader() == null) {
-                return object.toString();
-            }
             return new JSONObject(object);
         } catch (Exception exception) {
             System.err.println("[JSON-java] serialise exception: " + exception);
