@@ -268,7 +268,7 @@ public class JSONObject {
      * @throws NullPointerException If a key in the map is <code>null</code>
      */
     public JSONObject(Map<?, ?> m) {
-            this.map = new TreeMap<>();
+        this.map = new TreeMap<>();
         if (m != null) {
             for (final Entry<?, ?> e : m.entrySet()) {
                 if (e.getKey() == null) {
@@ -343,6 +343,20 @@ public class JSONObject {
     public JSONObject(Object bean) {
         this();
         this.populateMap(bean);
+    }
+
+    public JSONObject(Object bean, boolean cyclicFields) {
+        this();
+        this.populateMap(bean, cyclicFields);
+    }
+
+    public static JSONObject createCyclicFields(Object bean) {
+        JSONObject.resetCycleBreaker();
+        return new JSONObject(bean, true);
+    }
+
+    public static JSONObject createAcyclicFields(Object bean) {
+        return new JSONObject(bean, false);
     }
 
     /**
@@ -1379,6 +1393,13 @@ public class JSONObject {
      * @param bean the bean
      */
     private void populateMap(Object bean) {
+        populateMap(bean, true);
+    }
+
+    private void populateMap(Object bean, boolean cyclicFields) {
+        if (bean == null) {
+            return;
+        }
         Class<?> klass = bean.getClass();
         List<Field> fields = new ArrayList<>();
         fields = getAllFields(fields, klass);
@@ -1386,8 +1407,12 @@ public class JSONObject {
             try {
                 field.setAccessible(true);
                 Object result = field.get(bean);
+                if (!cyclicFields) {
+                    resetCycleBreaker();
+                }
                 this.map.put(field.getName(), wrap(result));
             } catch (Exception ignore) {
+                System.err.println("[JSON-trace] field exception: " + ignore);
             }
         }
     }
@@ -2226,13 +2251,17 @@ public class JSONObject {
             String objectPackageName = objectPackage != null ? objectPackage.getName() : "";
             if (objectPackageName.startsWith("java.")
                     || objectPackageName.startsWith("javax.")
-                    || objectPackageName.startsWith("org.")
+                    || objectPackageName.startsWith("org.ietf.")
+                    || objectPackageName.startsWith("org.omg.")
+                    || objectPackageName.startsWith("org.w3c.")
+                    || objectPackageName.startsWith("org.xml.")
                     || object.getClass().getClassLoader() == null) {
                 return object.toString();
             }
             return new JSONObject(object);
         } catch (Exception exception) {
-            return null;
+            System.err.println("[JSON-java] serialise exception: " + exception);
+            return "JSON_SERIALISE_EXCEPTION";
         }
     }
 
