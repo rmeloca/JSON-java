@@ -272,7 +272,7 @@ public class JSONObject {
         if (m != null) {
             for (final Entry<?, ?> e : m.entrySet()) {
                 if (e.getKey() == null) {
-                    throw new NullPointerException("Null key.");
+                    continue;
                 }
                 final Object value = e.getValue();
                 if (value != null) {
@@ -352,11 +352,16 @@ public class JSONObject {
 
     public static JSONObject createCyclicFields(Object bean) {
         JSONObject.resetCycleBreaker();
-        return new JSONObject(bean, true);
+        JSONObject jsonObject = new JSONObject(bean, true);
+        JSONObject.resetCycleBreaker();
+        return jsonObject;
     }
 
     public static JSONObject createAcyclicFields(Object bean) {
-        return new JSONObject(bean, false);
+        JSONObject.resetCycleBreaker();
+        JSONObject jsonObject = new JSONObject(bean, false);
+        JSONObject.resetCycleBreaker();
+        return jsonObject;
     }
 
     /**
@@ -1407,6 +1412,9 @@ public class JSONObject {
             try {
                 field.setAccessible(true);
                 Object result = field.get(bean);
+                if (result == null) {
+                    continue;
+                }
                 if (!cyclicFields) {
                     resetCycleBreaker();
                 }
@@ -2194,15 +2202,6 @@ public class JSONObject {
         JSONObject.VISITED.clear();
     }
 
-    private static boolean contains(Object object) {
-        for (Object visited : VISITED) {
-            if (visited == object) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     /**
      * Wrap an object, if necessary. If the object is <code>null</code>, return
      * the NULL object. If it is an array or collection, wrap it in a JSONArray.
@@ -2229,8 +2228,12 @@ public class JSONObject {
                     || object instanceof BigDecimal || object instanceof Enum) {
                 return object;
             }
-            if (contains(object)) {
-                return object.getClass().getName() + "@" + object.hashCode();
+            if (VISITED.stream().anyMatch((visited) -> (visited == object))) {
+                try {
+                    return String.valueOf(object);
+                } catch (Exception e) {
+                    return object.getClass().getName();
+                }
             }
             VISITED.add(object);
             if (object instanceof JSONObject || object instanceof JSONArray) {
