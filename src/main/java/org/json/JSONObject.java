@@ -2246,9 +2246,9 @@ public class JSONObject {
             }
             if (VISITED.stream().anyMatch((visited) -> (visited == object))) {
                 try {
-                    return String.valueOf(object);
+                    return object.getClass().getName() + "@" + object.hashCode();
                 } catch (Exception e) {
-                    return object.getClass().getName();
+                    return object.getClass().getName() + "@" + object.getClass().hashCode();
                 }
             }
             VISITED.add(object);
