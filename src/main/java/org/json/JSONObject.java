@@ -1380,6 +1380,9 @@ public class JSONObject {
 
     public List<Field> getAllFields(List<Field> fields, Class<?> type) {
         for (Field field : type.getDeclaredFields()) {
+            if (fields.contains(field)) {
+                continue;
+            }
             if (!field.getName().startsWith("ajc$tjp_")) {
                 fields.add(field);
             }
@@ -2244,6 +2247,26 @@ public class JSONObject {
                 Date date = (Date) object;
                 return date.getTime();
             }
+            if (object instanceof JSONObject || object instanceof JSONArray) {
+                return object;
+            }
+            String serialiseInternals = System.getenv("TRACER_SERIALISE_INTERNALS");
+            if (serialiseInternals == null) {
+                serialiseInternals = "true";
+            }
+            if (serialiseInternals.equals("false")) {
+                Package objectPackage = object.getClass().getPackage();
+                String objectPackageName = objectPackage != null ? objectPackage.getName() : "";
+                if (objectPackageName.startsWith("java.")
+                        || objectPackageName.startsWith("javax.")
+                        || objectPackageName.startsWith("org.ietf.")
+                        || objectPackageName.startsWith("org.omg.")
+                        || objectPackageName.startsWith("org.w3c.")
+                        || objectPackageName.startsWith("org.xml.")
+                        || object.getClass().getClassLoader() == null) {
+                    return object.toString();
+                }
+            }
             if (VISITED.stream().anyMatch((visited) -> (visited == object))) {
                 try {
                     return object.getClass().getName() + "@" + object.hashCode();
@@ -2252,9 +2275,6 @@ public class JSONObject {
                 }
             }
             VISITED.add(object);
-            if (object instanceof JSONObject || object instanceof JSONArray) {
-                return object;
-            }
             return new JSONObject(object);
         } catch (Exception exception) {
             System.err.println("[JSON-java] serialise exception: " + exception);
