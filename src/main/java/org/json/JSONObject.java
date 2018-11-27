@@ -33,6 +33,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -2228,17 +2229,6 @@ public class JSONObject {
                     || object instanceof BigDecimal || object instanceof Enum) {
                 return object;
             }
-            if (VISITED.stream().anyMatch((visited) -> (visited == object))) {
-                try {
-                    return String.valueOf(object);
-                } catch (Exception e) {
-                    return object.getClass().getName();
-                }
-            }
-            VISITED.add(object);
-            if (object instanceof JSONObject || object instanceof JSONArray) {
-                return object;
-            }
             if (object instanceof Collection) {
                 Collection<?> coll = (Collection<?>) object;
                 return new JSONArray(coll);
@@ -2249,6 +2239,21 @@ public class JSONObject {
             if (object instanceof Map) {
                 Map<?, ?> map = (Map<?, ?>) object;
                 return new JSONObject(map);
+            }
+            if (object instanceof Date) {
+                Date date = (Date) object;
+                return date.getTime();
+            }
+            if (VISITED.stream().anyMatch((visited) -> (visited == object))) {
+                try {
+                    return String.valueOf(object);
+                } catch (Exception e) {
+                    return object.getClass().getName();
+                }
+            }
+            VISITED.add(object);
+            if (object instanceof JSONObject || object instanceof JSONArray) {
+                return object;
             }
             return new JSONObject(object);
         } catch (Exception exception) {
