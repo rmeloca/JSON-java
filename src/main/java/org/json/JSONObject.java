@@ -31,7 +31,10 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Enumeration;
@@ -2257,17 +2260,26 @@ public class JSONObject {
             if (serialiseInternals.equals("false")) {
                 Package objectPackage = object.getClass().getPackage();
                 String objectPackageName = objectPackage != null ? objectPackage.getName() : "";
-                if (objectPackageName.startsWith("java.")
-                        || objectPackageName.startsWith("javax.")
-                        || objectPackageName.startsWith("org.ietf.")
-                        || objectPackageName.startsWith("org.omg.")
-                        || objectPackageName.startsWith("org.w3c.")
-                        || objectPackageName.startsWith("org.xml.")
-                        || object.getClass().getClassLoader() == null) {
-                    return object.toString();
+
+                String ignoredPackagesPath = System.getenv("TRACER_IGNORED_PACKAGES");
+                if (ignoredPackagesPath == null) {
+                    ignoredPackagesPath = "./ignored";
+                }
+                List<String> ignoredPackages;
+                try {
+                    ignoredPackages = Files.readAllLines(Paths.get(ignoredPackagesPath));
+                } catch (IOException ex) {
+                    ignoredPackages = new ArrayList<>();
+                }
+                String[] internals = {"java.", "org.ietf.", "org.omg.", "org.w3c.", "org.xml."};
+                ignoredPackages.addAll(Arrays.asList(internals));
+                for (String ignoredPackage : ignoredPackages) {
+                    if (objectPackageName.startsWith(ignoredPackage)) {
+                        return object.toString();
+                    }
                 }
             }
-            if (VISITED.stream().anyMatch((visited) -> (visited == object))) {
+            if (VISITED.stream().parallel().anyMatch((visited) -> (visited == object))) {
                 try {
                     return object.getClass().getName() + "@" + object.hashCode();
                 } catch (Exception e) {
